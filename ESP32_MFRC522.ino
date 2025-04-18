@@ -1,6 +1,19 @@
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SCK_PIN 4
+#define MISO_PIN 5
+#define MOSI_PIN 6
+#define RST_PIN 7
+#define SS_PIN 10
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);                   // Create MFRC522 instance
+
 void setup() {
   Serial.begin(9600);
   while(!Serial);
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);   // Init SPI bus
+  mfrc522.PCD_Init();                               // Init MFRC522 card
   Serial.write('\n');
 }
 
