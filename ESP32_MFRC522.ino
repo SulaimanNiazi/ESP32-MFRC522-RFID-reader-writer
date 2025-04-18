@@ -7,38 +7,71 @@
 #define RST_PIN 7
 #define SS_PIN 10
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);                   // Create MFRC522 instance
+#define PICC_CMD_MF_AUTH_KEY MFRC522::PICC_CMD_MF_AUTH_KEY_B  // The other option is: MFRC522::PICC_CMD_MF_AUTH_KEY_A
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);                             // Create MFRC522 instance
 
 void setup() {
   Serial.begin(9600);
   while(!Serial);
-  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);   // Init SPI bus
-  mfrc522.PCD_Init();                               // Init MFRC522 card
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);             // Init SPI bus
+  mfrc522.PCD_Init();                                         // Init MFRC522 card
   Serial.write('\n');
 }
 
 void loop(){
-  Serial.print("**Select Mode**\n1. Change UID Mode\n2. Read Block Mode\n3. Write Block Mode\nChoice: ");
-  byte buffer[34] = "", choice = readUART()[0];
+  MFRC522::MIFARE_Key key;                                    // Prepare key - all keys are set to FFFFFFFFFFFFh at chip delivery from the factory.
+  for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;
+
+  MFRC522::StatusCode status;
   String string = "";
+
+  Serial.print("**Select Mode**\n1. Change UID Mode\n2. Read Block Mode\n3. Write Block Mode\nChoice: ");
+  byte buffer[34] = "", len = 0, bytes_per_block = 20, choice = readUART()[0];
+  
   switch(choice){
     case '1':
       Serial.println("Change UID Mode Selected");
       while(1){
         awaitCardDetection();
-        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); //dump some details about the card
+        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));     //dump some details about the card
       }
       break;
     case '2':
       Serial.println("Read Block Mode Selected");
       Serial.print("Enter Block Number: ");
-      choice = readUART()[0];
+      choice = readUART()[0] - '0';
       Serial.print("Block ");
-      Serial.write(choice);
-      Serial.println(" Selected.\nBring a card near to read.");
+      Serial.print(choice);
+      Serial.print(" Selected.\nEnter the number of characters to read: ");
+      string = readUART();
+      len = string.toInt();
+      Serial.print(len);
+      Serial.println(" characters will be read.\nBring a card near to read.");
       while(1){
-        awaitCardDetection();
-        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); //dump some details about the card
+        while(1){
+          awaitCardDetection();
+          mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));     //dump some details about the card
+
+          status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, choice, &key, &(mfrc522.uid));
+          if (status != MFRC522::STATUS_OK) {
+            Serial.print(F("Authentication failed: "));
+            Serial.println(mfrc522.GetStatusCodeName(status));
+            break;
+          }
+          status = mfrc522.MIFARE_Read(choice, buffer, &bytes_per_block);
+          if (status != MFRC522::STATUS_OK) {
+            Serial.print(F("Reading failed: "));
+            Serial.println(mfrc522.GetStatusCodeName(status));
+            break;
+          }
+
+          for (uint8_t i = 0; i < len; i++)
+          {
+            Serial.write(buffer[i]);
+          }
+          Serial.println(" ");
+        }
       }
       break;
     case '3':
@@ -51,7 +84,7 @@ void loop(){
       Serial.println("Enter block data:");
       string = readUART();
       string.getBytes(buffer, 20);
-      for (int i = string.length(); i < 20; i++) buffer[i] = ' ';         // pad with spaces
+      for (int i = string.length(); i < 20; i++) buffer[i] = ' ';       // pad with spaces
       Serial.println("Block data saved.\nBring a card near to write.");
       while(1){
         awaitCardDetection();
