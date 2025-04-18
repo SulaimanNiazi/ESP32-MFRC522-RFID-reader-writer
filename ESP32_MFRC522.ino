@@ -4,12 +4,9 @@ void setup() {
   Serial.write('\n');
 }
 
-void loop() {
-  byte choice;
-  Serial.println("**Select Mode**\n1. Change UID Mode\n2. Read Block Mode\n3. Write Block Mode");
-  Serial.flush();
-  while(!Serial.available());
-  choice = Serial.read();
+void loop(){
+  Serial.print("**Select Mode**\n1. Change UID Mode\n2. Read Block Mode\n3. Write Block Mode\nChoice: ");
+  byte choice = readUART()[0];
   switch(choice){
     case '1':
       Serial.println("Change UID Mode Selected");
@@ -46,4 +43,30 @@ void loop() {
       }
       Serial.println();
   }
+}
+
+String readUART() {
+  String input = ""; // String to store input
+  while (true) {
+    if (Serial.available() > 0) {
+      byte inByte = Serial.read();  // Read the byte from UART
+      // If the byte is a Line Feed (Enter key), stop reading
+      if (inByte == 10) {  // Line Feed (LF)
+        Serial.println();
+        break;
+      }
+      // If the byte is Backspace, remove the last character if there is any
+      if (inByte == 8) {  // Backspace (BS)
+        if (input.length() > 0) {
+          input.remove(input.length() - 1);  // Remove last character
+          Serial.print("\b \b"); // Move the cursor back, print a space, and move it back again
+        }
+      } else {
+        // Append the received character to the input string
+        input += (char)inByte;
+        Serial.print((char)inByte); // Print the character
+      }
+    }
+  }  
+  return input; // Return the collected input
 }
