@@ -19,24 +19,43 @@ void setup() {
 
 void loop(){
   Serial.print("**Select Mode**\n1. Change UID Mode\n2. Read Block Mode\n3. Write Block Mode\nChoice: ");
-  byte choice = readUART()[0];
+  byte buffer[34] = "", choice = readUART()[0];
+  String string = "";
   switch(choice){
     case '1':
       Serial.println("Change UID Mode Selected");
       while(1){
-
+        awaitCardDetection();
+        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); //dump some details about the card
       }
       break;
     case '2':
       Serial.println("Read Block Mode Selected");
+      Serial.print("Enter Block Number: ");
+      choice = readUART()[0];
+      Serial.print("Block ");
+      Serial.write(choice);
+      Serial.println(" Selected.\nBring a card near to read.");
       while(1){
-
+        awaitCardDetection();
+        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); //dump some details about the card
       }
       break;
     case '3':
       Serial.println("Write Block Mode Selected");
+      Serial.print("Enter Block Number: ");
+      choice = readUART()[0];
+      Serial.print("Block ");
+      Serial.write(choice);
+      Serial.println(" Selected.");
+      Serial.println("Enter block data:");
+      string = readUART();
+      string.getBytes(buffer, 20);
+      for (int i = string.length(); i < 20; i++) buffer[i] = ' ';         // pad with spaces
+      Serial.println("Block data saved.\nBring a card near to write.");
       while(1){
-
+        awaitCardDetection();
+        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));               // dump some details about the card
       }
       break;
     default:
@@ -82,4 +101,15 @@ String readUART() {
     }
   }  
   return input; // Return the collected input
+}
+
+void awaitCardDetection(){
+  while(1){
+    while(1){
+      if ( ! mfrc522.PICC_IsNewCardPresent())break;     // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
+      if ( ! mfrc522.PICC_ReadCardSerial())break;       // Select one of the cards
+      Serial.println(F("**Card Detected:**"));
+      return;
+    }
+  }
 }
