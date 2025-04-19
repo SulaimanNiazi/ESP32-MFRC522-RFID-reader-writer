@@ -7,8 +7,6 @@
 #define RST_PIN 7
 #define SS_PIN 10
 
-//#define PICC_CMD_MF_AUTH_KEY MFRC522::PICC_CMD_MF_AUTH_KEY_B  // The other option is: MFRC522::PICC_CMD_MF_AUTH_KEY_A
-
 MFRC522 mfrc522(SS_PIN, RST_PIN);                             // Create MFRC522 instance
 
 void setup() {
@@ -34,7 +32,6 @@ void loop(){
       Serial.println("Change UID Mode Selected");
       while(1){
         awaitCardDetection();
-        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));     //dump some details about the card
       }
       break;
     case '2':
@@ -49,27 +46,22 @@ void loop(){
       Serial.print(len);
       Serial.println(" characters will be read.\nBring a card near to read.");
       while(1){
-        while(1){
-          awaitCardDetection();
-          mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));     //dump some details about the card
-          status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, choice, &key, &(mfrc522.uid));
-          if (status != MFRC522::STATUS_OK) {
-            Serial.print(F("Authentication failed: "));
-            Serial.println(mfrc522.GetStatusCodeName(status));
-            break;
-          }
+        awaitCardDetection();
+        status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, choice, &key, &(mfrc522.uid));
+        if (status != MFRC522::STATUS_OK) {
+          Serial.print(F("Authentication failed: "));
+          Serial.println(mfrc522.GetStatusCodeName(status));
+        }else{
           status = mfrc522.MIFARE_Read(choice, buffer, &block_size);
           if (status != MFRC522::STATUS_OK) {
             Serial.print(F("Reading failed: "));
             Serial.println(mfrc522.GetStatusCodeName(status));
-            break;
+          }else{
+            for (uint8_t i = 0; i < len; i++){
+              Serial.write(buffer[i]);
+            }
+            Serial.println(" ");
           }
-
-          for (uint8_t i = 0; i < len; i++)
-          {
-            Serial.write(buffer[i]);
-          }
-          Serial.println(" ");
         }
       }
       break;
@@ -83,28 +75,22 @@ void loop(){
       Serial.println("Enter block data:");
       string = readUART();
       string.getBytes(buffer, block_size);
-      for (int i = string.length(); i < block_size; i++) buffer[i] = ' ';       // pad with spaces
+      for (int i = string.length(); i < block_size; i++) buffer[i] = ' '; // pad with spaces
       Serial.println("Block data saved.\nBring a card near to write.");
       while(1){
-        while(1){
-          awaitCardDetection();
-          mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));               // dump some details about the card
-          status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, choice, &key, &(mfrc522.uid));
-          if (status != MFRC522::STATUS_OK) {
-            Serial.print(F("PCD_Authenticate() failed: "));
-            Serial.println(mfrc522.GetStatusCodeName(status));
-            break;
-          }
-
-          // Write block
+        awaitCardDetection();
+        status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, choice, &key, &(mfrc522.uid));
+        if (status != MFRC522::STATUS_OK) {
+          Serial.print(F("PCD_Authenticate() failed: "));
+          Serial.println(mfrc522.GetStatusCodeName(status));
+        }else{
           status = mfrc522.MIFARE_Write(choice, buffer, 16);
           if (status != MFRC522::STATUS_OK) {
             Serial.print(F("MIFARE_Write() failed: "));
             Serial.println(mfrc522.GetStatusCodeName(status));
-            break;
           }
           else Serial.println(F("MIFARE_Write() success: "));
-        }
+        } 
       }
       break;
     default:
@@ -127,38 +113,38 @@ void loop(){
 }
 
 String readUART() {
-  String input = ""; // String to store input
-  while (true) {
-    if (Serial.available() > 0) {
-      byte inByte = Serial.read();  // Read the byte from UART
-      // If the byte is a Line Feed (Enter key), stop reading
-      if (inByte == 10) {  // Line Feed (LF)
+  String input = "";
+  while(1){
+    if (Serial.available() > 0) {                         // Wait for the UART recieve buffer to get a byte
+      byte inByte = Serial.read();                        // Read the byte from UART
+      if (inByte == 10) {                                 // Line Feed (LF)
         Serial.println();
         break;
       }
-      // If the byte is Backspace, remove the last character if there is any
-      if (inByte == 8) {  // Backspace (BS)
+      if (inByte == 8) {                                  // Backspace (BS)
         if (input.length() > 0) {
-          input.remove(input.length() - 1);  // Remove last character
-          Serial.print("\b \b"); // Move the cursor back, print a space, and move it back again
+          input.remove(input.length() - 1);               // Remove last character
+          Serial.print("\b \b");                          // Move the cursor back, print a space, and move it back again
         }
       } else {
-        // Append the received character to the input string
-        input += (char)inByte;
-        Serial.print((char)inByte); // Print the character
+        input += (char)inByte;                            // Append the received character to the input string
+        Serial.print((char)inByte);                       // Print the character
       }
     }
   }  
-  return input; // Return the collected input
+  return input;                                           // Return the collected input
 }
 
 void awaitCardDetection(){
+  mfrc522.PICC_HaltA();                                   // Halt the previous card, ending the communication session
+  mfrc522.PCD_StopCrypto1();                              // Stop the encryption on the reader, resetting its state
   while(1){
-    while(1){
-      if ( ! mfrc522.PICC_IsNewCardPresent())break;     // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
-      if ( ! mfrc522.PICC_ReadCardSerial())break;       // Select one of the cards
-      Serial.println(F("**Card Detected:**"));
-      return;
+    if (mfrc522.PICC_IsNewCardPresent()){                 // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
+      if (mfrc522.PICC_ReadCardSerial()){                 // Select one of the cards
+        Serial.println(F("**Card Detected:**"));
+        mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); // dump some identification details about the card
+        return;
+      }
     }
   }
 }
