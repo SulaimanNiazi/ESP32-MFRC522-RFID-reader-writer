@@ -5,15 +5,20 @@
 #define MISO_PIN 5
 #define MOSI_PIN 6
 #define RST_PIN 7
+#define Indicator_PIN 8
 #define SS_PIN 10
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);                             // Create MFRC522 instance
 
 void setup() {
-  Serial.begin(9600);
-  while(!Serial);
+  Serial.begin(9600);                                         // 9600 baudrate
+  while(!Serial);                                             // Do nothing if there is no UART connection
+  
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);             // Init SPI bus
+  pinMode(Indicator_PIN, OUTPUT);
+  digitalWrite(Indicator_PIN, LOW);
   mfrc522.PCD_Init();                                         // Init MFRC522 card
+
   Serial.write('\n');
 }
 
@@ -88,7 +93,7 @@ void loop(){
       }
       break;
     case '3':
-      Serial.print("Write Block Mode Selected");
+      Serial.println("Write Block Mode Selected.");
       while(1){
         Serial.print("Enter Block Number: ");
         choice = readUART().toInt();
@@ -171,10 +176,12 @@ String readUART() {
 void awaitCardDetection(){
   mfrc522.PICC_HaltA();                                   // Halt the previous card, ending the communication session
   mfrc522.PCD_StopCrypto1();                              // Stop the encryption on the reader, resetting its state
+  digitalWrite(Indicator_PIN, LOW);
   
   while(1){
     if (mfrc522.PICC_IsNewCardPresent()){                 // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
       if (mfrc522.PICC_ReadCardSerial()){                 // Select one of the cards
+        digitalWrite(Indicator_PIN, HIGH);
         Serial.println(F("**Card Detected:**"));
         mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); // dump some identification details about the card
         return;
