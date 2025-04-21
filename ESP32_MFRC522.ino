@@ -20,7 +20,7 @@ void setup() {
 void loop(){
   Serial.print("**Select Mode**\n1. Change UID Mode\n2. Read Block Mode\n3. Write Block Mode\nChoice: ");
   
-  byte buffer[34] = "", len = 0, block_size = 20, choice = readUART()[0];
+  byte buffer[20] = "", len = 0, choice = readUART()[0];
   MFRC522::StatusCode status;
   String string = "";
   MFRC522::MIFARE_Key key;
@@ -38,14 +38,31 @@ void loop(){
       }
       break;
     case '2':
-      Serial.print("Read Block Mode Selected\nEnter Block Number: ");
-      choice = readUART().toInt();
-      Serial.print("Block ");
-      Serial.print(choice);
-      Serial.print(" Selected.\nEnter the number of characters to read: ");
-      len = readUART().toInt();
-      Serial.print(len);
-      Serial.println(" characters will be read.\nBring a card near to read.");
+      Serial.println("Read Block Mode Selected");
+      while(1){
+        Serial.print("Enter Block Number: ");
+        choice = readUART().toInt();
+        if(3 < choice && choice < 64){
+          Serial.print("Block ");
+          Serial.print(choice);
+          Serial.println(" Selected.");
+          break;
+        }else{
+          Serial.println("Enter a block value in the range of 4 to 63.");
+        }
+      }
+      while(1){
+        Serial.print("Enter the number of characters to read: ");
+        len = readUART().toInt();
+        if(0 < len && len < 17){
+          Serial.print(len);
+          Serial.println(" characters will be read.");
+          break;
+        }else{
+          Serial.println("Enter a value in the range of 0 to 16.");
+        }
+      }
+      Serial.println("Bring a card near to read.");
       
       while(1){
         awaitCardDetection();
@@ -55,7 +72,8 @@ void loop(){
           Serial.print(F("Authentication failed: "));
           Serial.println(mfrc522.GetStatusCodeName(status));
         }else{
-          status = mfrc522.MIFARE_Read(choice, buffer, &block_size);
+          byte temp = 20;
+          status = mfrc522.MIFARE_Read(choice, buffer, &temp);
           
           if (status != MFRC522::STATUS_OK) {
             Serial.print(F("Reading failed: "));
@@ -70,14 +88,23 @@ void loop(){
       }
       break;
     case '3':
-      Serial.print("Write Block Mode Selected\nEnter Block Number: ");
-      choice = readUART().toInt();
-      Serial.print("Block ");
-      Serial.print(choice);
-      Serial.println(" Selected.\nEnter block data:");
+      Serial.print("Write Block Mode Selected");
+      while(1){
+        Serial.print("Enter Block Number: ");
+        choice = readUART().toInt();
+        if(3 < choice && choice < 64){
+          Serial.print("Block ");
+          Serial.print(choice);
+          Serial.println(" Selected.");
+          break;
+        }else{
+          Serial.println("Enter a block value in the range of 4 to 63.");
+        }
+      }
+      Serial.println("Enter block data:");
       string = readUART();
-      string.getBytes(buffer, block_size);
-      for (int i = string.length(); i < block_size; i++) buffer[i] = ' '; // pad with spaces
+      string.getBytes(buffer, 16);
+      for (int i = string.length(); i < 16; i++) buffer[i] = ' '; // pad with spaces
       Serial.println("Block data saved.\nBring a card near to write.");
       
       while(1){
