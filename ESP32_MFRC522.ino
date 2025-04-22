@@ -13,7 +13,7 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);                             // Create MFRC522 
 void setup() {
   Serial.begin(9600);                                         // 9600 baudrate
   while(!Serial);                                             // Do nothing if there is no UART connection
-  
+
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);             // Init SPI bus
   pinMode(Indicator_PIN, OUTPUT);
   digitalWrite(Indicator_PIN, LOW);
@@ -181,10 +181,15 @@ void awaitCardDetection(){
   while(1){
     if (mfrc522.PICC_IsNewCardPresent()){                 // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
       if (mfrc522.PICC_ReadCardSerial()){                 // Select one of the cards
-        digitalWrite(Indicator_PIN, HIGH);
         Serial.println(F("**Card Detected:**"));
         mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); // dump some identification details about the card
-        return;
+        MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
+        if (piccType != MFRC522::PICC_TYPE_MIFARE_MINI &&  piccType != MFRC522::PICC_TYPE_MIFARE_1K &&  piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
+          Serial.println(F("This project only works with MIFARE Classic cards."));
+        }else{
+          digitalWrite(Indicator_PIN, HIGH);
+          return;
+        }
       }
     }
   }
