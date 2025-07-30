@@ -1,17 +1,17 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define SCK_PIN 4
-#define MISO_PIN 5
-#define MOSI_PIN 6
-#define RST_PIN 7
-#define Indicator_PIN 8
-#define SS_PIN 10
+#define SCK_PIN 18
+#define MISO_PIN 19
+#define MOSI_PIN 23
+#define RST_PIN 2
+#define Indicator_PIN 3
+#define SS_PIN 5
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);                             // Create MFRC522 instance
 
 void setup() {
-  Serial.begin(9600);                                         // 9600 baudrate
+  Serial.begin(115200);
   while(!Serial);                                             // Do nothing if there is no UART connection
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);             // Init SPI bus
@@ -155,7 +155,7 @@ String readUART() {
   while(1){
     if (Serial.available() > 0) {                         // Wait for the UART recieve buffer to get a byte
       byte inByte = Serial.read();                        // Read the byte from UART
-      if (inByte == 10) {                                 // Line Feed (LF)
+      if ((inByte == 10)||(inByte == 0x0D)) {                                 // Line Feed (LF)
         Serial.println();
         break;
       }
@@ -179,13 +179,13 @@ void awaitCardDetection(){
   digitalWrite(Indicator_PIN, LOW);
   
   while(1){
-    if (mfrc522.PICC_IsNewCardPresent()){                 // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
+    if (mfrc522.PICC_IsNewCardPresent()){            // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle. (Skipped)
       if (mfrc522.PICC_ReadCardSerial()){                 // Select one of the cards
         Serial.println(F("**Card Detected:**"));
         mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid)); // dump some identification details about the card
         MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
         if (piccType != MFRC522::PICC_TYPE_MIFARE_MINI &&  piccType != MFRC522::PICC_TYPE_MIFARE_1K &&  piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
-          Serial.println(F("This project only works with MIFARE Classic cards."));
+          Serial.println("This project only works with MIFARE Classic cards and ISO 14443A tags.");
         }else{
           digitalWrite(Indicator_PIN, HIGH);
           return;
